@@ -11,8 +11,10 @@ add_subdirectory(third_party/userver)
 add_library(${PROJECT_NAME}_objs OBJECT
     src/hello.hpp
     src/hello.cpp
+    src/registration/registration.hpp
+    src/registration/registration.cpp
 )
-target_link_libraries(${PROJECT_NAME}_objs PUBLIC userver-core)
+target_link_libraries(${PROJECT_NAME}_objs PUBLIC userver-core userver-redis)
 
 
 # The Service

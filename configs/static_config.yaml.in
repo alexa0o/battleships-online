@@ -50,6 +50,23 @@ components_manager:
             path: /tests/{action}
             method: POST
             task_processor: main-task-processor
+
+        key-value-database:
+            groups:
+              - config_name: main-kv  # Key to lookup in secdist configuration
+                db: main-kv           # Name to refer to the cluster in components::Redis::GetClient()
+
+            subscribe_groups:  # Array of redis clusters to work with in subscribe mode
+
+            thread_pools:
+                redis_thread_pool_size: 8
+                sentinel_thread_pool_size: 1
+
+        secdist:                                         # Component that stores configuration of hosts and passwords
+            config: /home/alexa0o/secure_data.json       # Values are supposed to be stored in this file
+            missing-ok: true                             # ... but if the file is missing it is still ok
+            environment-secrets-key: SECDIST_CONFIG      # ... values will be loaded from this environment value
+
         handler-ping:
             path: /ping
             method: GET
@@ -61,3 +78,13 @@ components_manager:
             path: /hello                  # Registering handler by URL '/hello'.
             method: GET,POST              # It will only reply to GET (HEAD) and POST requests.
             task_processor: main-task-processor  # Run it on CPU bound task processor
+
+        handler-registration:
+            path: /regnewgame
+            method: GET
+            task_processor: main-task-processor
+
+        handler-regstatus:
+            path: /regstatus
+            method: GET
+            task_processor: main-task-processor
