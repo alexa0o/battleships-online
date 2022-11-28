@@ -13,6 +13,8 @@ add_library(${PROJECT_NAME}_objs OBJECT
     src/hello.cpp
     src/registration/registration.hpp
     src/registration/registration.cpp
+    src/field/field.cpp
+    src/field/field.hpp
 )
 target_link_libraries(${PROJECT_NAME}_objs PUBLIC userver-core userver-redis)
 

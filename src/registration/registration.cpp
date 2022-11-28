@@ -55,8 +55,8 @@ void GameMatcher::MatchLoop(storages::redis::ClientPtr redis_client,
                 reg_id_2 = redis_client->Lpop(kRegQueue, redis_cc).Get();
             }
 
-            redis_client->Hset("game", reg_id.value(), reg_id_2.value(), redis_cc);
-            redis_client->Hset("game", reg_id_2.value(), reg_id.value(), redis_cc);
+            redis_client->Hset("game_matcher", reg_id.value(), reg_id_2.value(), redis_cc);
+            redis_client->Hset("game_matcher", reg_id_2.value(), reg_id.value(), redis_cc);
         }
         engine::SleepFor(std::chrono::seconds(3));
     }
@@ -128,7 +128,7 @@ std::string RegStatus::HandleRequestThrow(const server::http::HttpRequest& reque
     if (reg_id.empty()) {
         return "Can't find reg_id arg";
     }
-    const auto& player_id = redis_client_->Hget("game", reg_id, redis_cc_).Get();
+    const auto& player_id = redis_client_->Hget("game_matcher", reg_id, redis_cc_).Get();
 
     return player_id.value_or("Wait");
 }

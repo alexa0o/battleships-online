@@ -88,3 +88,8 @@ components_manager:
             path: /regstatus
             method: GET
             task_processor: main-task-processor
+
+        handler-field:
+            path: /sendfield
+            method: POST
+            task_processor: main-task-processor
