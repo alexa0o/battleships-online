@@ -15,6 +15,9 @@ add_library(${PROJECT_NAME}_objs OBJECT
     src/registration/registration.cpp
     src/field/field.cpp
     src/field/field.hpp
+    src/field/field_stat.hpp
+    src/game/game.hpp
+    src/game/game.cpp
 )
 target_link_libraries(${PROJECT_NAME}_objs PUBLIC userver-core userver-redis)
 

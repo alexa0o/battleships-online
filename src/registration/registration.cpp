@@ -55,6 +55,8 @@ void GameMatcher::MatchLoop(storages::redis::ClientPtr redis_client,
                 reg_id_2 = redis_client->Lpop(kRegQueue, redis_cc).Get();
             }
 
+            redis_client->Hset("turn", reg_id.value(), "1", redis_cc);
+            redis_client->Hset("turn", reg_id_2.value(), "0", redis_cc);
             redis_client->Hset("game_matcher", reg_id.value(), reg_id_2.value(), redis_cc);
             redis_client->Hset("game_matcher", reg_id_2.value(), reg_id.value(), redis_cc);
         }

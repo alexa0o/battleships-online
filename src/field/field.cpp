@@ -9,16 +9,71 @@
 #include <userver/engine/sleep.hpp>
 #include <userver/formats/json.hpp>
 
+#include "field_stat.hpp"
+
 namespace battleship {
 
-enum class FieldPoint: size_t {
-    Empty,
-    Ship,
-    X_Ship
+class FieldResultJsonBuilder {
+public:
+    FieldResultJsonBuilder(const FieldHelper& field_helper);
+    std::string GetString() const;
+
+private:
+    const FieldHelper& field_helper_;
 };
 
-static constexpr size_t kFieldSize = 10;
-using Field = std::array<std::array<FieldPoint, kFieldSize>, kFieldSize>;
+FieldResultJsonBuilder::FieldResultJsonBuilder(const FieldHelper& field_helper)
+    : field_helper_(field_helper) { }
+
+std::string FieldResultJsonBuilder::GetString() const {
+    formats::json::ValueBuilder builder;
+    builder["status"] = field_helper_.IsValid();
+    const auto ships = field_helper_.CountShips();
+    builder["ships"]["1"] = ships.ship_1;
+    builder["ships"]["2"] = ships.ship_2;
+    builder["ships"]["3"] = ships.ship_3;
+    builder["ships"]["4"] = ships.ship_4;
+
+    return ToString(builder.ExtractValue());
+}
+
+class FieldHandler : public server::handlers::HttpHandlerBase {
+public:
+    static constexpr std::string_view kName = "handler-field";
+
+    FieldHandler(const components::ComponentConfig& config,
+          const components::ComponentContext& context);
+
+    std::string HandleRequestThrow(const server::http::HttpRequest& request,
+                                   server::request::RequestContext&) const override;
+
+private:
+    storages::redis::ClientPtr redis_client_;
+    storages::redis::CommandControl redis_cc_;
+};
+
+FieldHandler::FieldHandler(const components::ComponentConfig& config,
+             const components::ComponentContext& context) 
+    : server::handlers::HttpHandlerBase(config, context),
+      redis_client_{
+          context.FindComponent<components::Redis>("key-value-database")
+              .GetClient("main-kv")} { }
+
+std::string FieldHandler::HandleRequestThrow(const server::http::HttpRequest& request,
+                                      server::request::RequestContext&) const {
+    const auto player_id = request.GetArg("player_id");
+    if (player_id.empty()) {
+        return "Wrong player_id";
+    }
+    const auto& body = request.RequestBody();
+    formats::json::Value json = formats::json::FromString(body)["left_field"];
+    FieldHelper field(json["field"].As<Field>());
+    FieldResultJsonBuilder field_json(field);
+    if (field.IsValid()) {
+        redis_client_->Hset("game", player_id, body, redis_cc_);
+    }
+    return field_json.GetString();
+}
 
 Field Parse(const formats::json::Value& json,
             formats::parse::To<Field>) {
@@ -30,28 +85,6 @@ Field Parse(const formats::json::Value& json,
     }
     return field;
 }
-
-struct FieldShips {
-    size_t ship_1 = 0;
-    size_t ship_2 = 0;
-    size_t ship_3 = 0;
-    size_t ship_4 = 0;
-};
-
-class FieldHelper {
-public:
-    FieldHelper(const Field& field);
-    bool IsValid() const;
-    FieldShips CountShips() const;
-
-private:
-    bool CountShipsAndCheckValid();
-
-private:
-    Field field_;
-    FieldShips ships_;
-    bool is_valid_;
-};
 
 FieldHelper::FieldHelper(const Field& field)
     : field_(field),
@@ -153,66 +186,70 @@ FieldShips FieldHelper::CountShips() const {
     return ships_;
 }
 
-class FieldResultJsonBuilder {
-public:
-    FieldResultJsonBuilder(const FieldHelper& field_helper);
-    std::string GetString() const;
-
-private:
-    const FieldHelper& field_helper_;
-};
-
-FieldResultJsonBuilder::FieldResultJsonBuilder(const FieldHelper& field_helper)
-    : field_helper_(field_helper) { }
-
-std::string FieldResultJsonBuilder::GetString() const {
-    formats::json::ValueBuilder builder;
-    builder["status"] = field_helper_.IsValid();
-    const auto ships = field_helper_.CountShips();
-    builder["ships"]["1"] = ships.ship_1;
-    builder["ships"]["2"] = ships.ship_2;
-    builder["ships"]["3"] = ships.ship_3;
-    builder["ships"]["4"] = ships.ship_4;
-
-    return ToString(builder.ExtractValue());
+bool FieldHelper::IsAllShipsDead(const Field& field) {
+    for (const auto& line : field) {
+        for (const auto point : line) {
+            if (point == FieldPoint::Ship) {
+                return false;
+            }
+        }
+    }
+    return true;
 }
 
-class FieldHandler : public server::handlers::HttpHandlerBase {
-public:
-    static constexpr std::string_view kName = "handler-field";
+bool FieldHelper::IsKilled(const Field& field, size_t x, size_t y) {
+    size_t current_x = x;
+    size_t current_y = y;
 
-    FieldHandler(const components::ComponentConfig& config,
-          const components::ComponentContext& context);
-
-    std::string HandleRequestThrow(const server::http::HttpRequest& request,
-                                   server::request::RequestContext&) const override;
-
-private:
-    storages::redis::ClientPtr redis_client_;
-    storages::redis::CommandControl redis_cc_;
-};
-
-FieldHandler::FieldHandler(const components::ComponentConfig& config,
-             const components::ComponentContext& context) 
-    : server::handlers::HttpHandlerBase(config, context),
-      redis_client_{
-          context.FindComponent<components::Redis>("key-value-database")
-              .GetClient("main-kv")} { }
-
-std::string FieldHandler::HandleRequestThrow(const server::http::HttpRequest& request,
-                                      server::request::RequestContext&) const {
-    const auto player_id = request.GetArg("player_id");
-    if (player_id.empty()) {
-        return "Wrong player_id";
+    while (current_x > 0) {
+        const auto point = field[current_x - 1][y];
+        if (point == FieldPoint::Ship) {
+            return false;
+        } else if (point == FieldPoint::X_Ship) {
+            --current_x;
+        } else {
+            break;
+        }
     }
-    const auto& body = request.RequestBody();
-    formats::json::Value json = formats::json::FromString(body);
-    FieldHelper field(json["field"].As<Field>());
-    FieldResultJsonBuilder field_json(field);
-    if (field.IsValid()) {
-        redis_client_->Hset("game", player_id, body, redis_cc_);
+
+    current_x = x;
+
+    while (current_x < kFieldSize - 1) {
+        const auto point = field[current_x + 1][y];
+        if (point == FieldPoint::Ship) {
+            return false;
+        } else if (point == FieldPoint::X_Ship) {
+            ++current_x;
+        } else {
+            break;
+        }
     }
-    return field_json.GetString();
+
+    while (current_y > 0) {
+        const auto point = field[x][current_y - 1];
+        if (point == FieldPoint::Ship) {
+            return false;
+        } else if (point == FieldPoint::X_Ship) {
+            --current_y;
+        } else {
+            break;
+        }
+    }
+
+    current_y = y;
+    
+    while (current_y < kFieldSize - 1) {
+        const auto point = field[x][current_y + 1];
+        if (point == FieldPoint::Ship) {
+            return false;
+        } else if (point == FieldPoint::X_Ship) {
+            ++current_y;
+        } else {
+            break;
+        }
+    }
+
+    return true;
 }
 
 void AppendField(userver::components::ComponentList& component_list) {

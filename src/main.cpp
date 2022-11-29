@@ -11,6 +11,7 @@
 #include "hello.hpp"
 #include "registration/registration.hpp"
 #include "field/field.hpp"
+#include "game/game.hpp"
 
 int main(int argc, char *argv[]) {
   auto component_list = userver::components::MinimalServerComponentList()
@@ -24,6 +25,7 @@ int main(int argc, char *argv[]) {
   service_template::AppendHello(component_list);
   battleship::AppendRegistrator(component_list);
   battleship::AppendField(component_list);
+  battleship::AppendGame(component_list);
 
   return userver::utils::DaemonMain(argc, argv, component_list);
 }

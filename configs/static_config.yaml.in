@@ -93,3 +93,8 @@ components_manager:
             path: /sendfield
             method: POST
             task_processor: main-task-processor
+
+        handler-game:
+            path: /trykill
+            method: GET
+            task_processor: main-task-processor
