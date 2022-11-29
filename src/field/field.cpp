@@ -11,6 +11,8 @@
 
 #include "field_stat.hpp"
 
+#include <cors.hpp>
+
 namespace battleship {
 
 class FieldResultJsonBuilder {
@@ -61,10 +63,19 @@ FieldHandler::FieldHandler(const components::ComponentConfig& config,
 
 std::string FieldHandler::HandleRequestThrow(const server::http::HttpRequest& request,
                                       server::request::RequestContext&) const {
+    SetCors(request);
     const auto player_id = request.GetArg("player_id");
     if (player_id.empty()) {
         return "Wrong player_id";
     }
+    if (!redis_client_->Hget("game_matcher", player_id, redis_cc_).Get().has_value()) {
+        return "Wrong player_id";
+    }
+    
+    if (redis_client_->Hget("game", player_id, redis_cc_).Get().has_value()) {
+        return "It's not a time to send the field";
+    }
+
     const auto& body = request.RequestBody();
     formats::json::Value json = formats::json::FromString(body)["left_field"];
     FieldHelper field(json["field"].As<Field>());

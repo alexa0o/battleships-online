@@ -6,11 +6,14 @@ include(GNUInstallDirs)
 
 add_subdirectory(third_party/userver)
 
+include_directories(src)
 
 # Common sources
 add_library(${PROJECT_NAME}_objs OBJECT
     src/hello.hpp
     src/hello.cpp
+    src/options.cpp
+    src/options.hpp
     src/registration/registration.hpp
     src/registration/registration.cpp
     src/field/field.cpp

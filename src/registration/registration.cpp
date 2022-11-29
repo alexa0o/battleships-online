@@ -12,6 +12,8 @@
 
 #include <atomic>
 
+#include <cors.hpp>
+
 namespace battleship {
 
 static std::atomic_size_t kLastRegId = 0;
@@ -55,8 +57,8 @@ void GameMatcher::MatchLoop(storages::redis::ClientPtr redis_client,
                 reg_id_2 = redis_client->Lpop(kRegQueue, redis_cc).Get();
             }
 
-            redis_client->Hset("turn", reg_id.value(), "1", redis_cc);
-            redis_client->Hset("turn", reg_id_2.value(), "0", redis_cc);
+            redis_client->Hset("turn", reg_id.value(), "0", redis_cc);
+            redis_client->Hset("turn", reg_id_2.value(), "1", redis_cc);
             redis_client->Hset("game_matcher", reg_id.value(), reg_id_2.value(), redis_cc);
             redis_client->Hset("game_matcher", reg_id_2.value(), reg_id.value(), redis_cc);
         }
@@ -91,8 +93,9 @@ Registrator::Registrator(const components::ComponentConfig& config,
             .GetClient("main-kv")},
       game_matcher_(redis_client_, context.GetTaskProcessor("main-task-processor")) { }
 
-std::string Registrator::HandleRequestThrow(const server::http::HttpRequest& /*request*/,
+std::string Registrator::HandleRequestThrow(const server::http::HttpRequest& request,
                                             server::request::RequestContext& /*context*/) const {
+    SetCors(request);
     const auto reg_id = std::to_string(kLastRegId++);
     redis_client_->Rpush(kRegQueue, reg_id, redis_cc_);
 
@@ -126,6 +129,7 @@ RegStatus::RegStatus(const components::ComponentConfig& config,
 
 std::string RegStatus::HandleRequestThrow(const server::http::HttpRequest& request,
                                           server::request::RequestContext& /*context*/) const {
+    SetCors(request);
     const auto& reg_id = request.GetArg("reg_id");
     if (reg_id.empty()) {
         return "Can't find reg_id arg";

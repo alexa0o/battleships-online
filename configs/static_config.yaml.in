@@ -98,3 +98,8 @@ components_manager:
             path: /trykill
             method: GET
             task_processor: main-task-processor
+
+        handler-implicit-options:
+            path: /*
+            method: OPTIONS
+            task_processor: main-task-processor

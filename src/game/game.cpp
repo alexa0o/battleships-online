@@ -15,7 +15,8 @@
 #include <sstream>
 #include <string>
 
-#include "../field/field_stat.hpp"
+#include <field/field_stat.hpp>
+#include <cors.hpp>
 
 namespace battleship {
 
@@ -62,6 +63,7 @@ Value Serialize(const Field& field, formats::serialize::To<Value>) {
 
 std::string GameHandler::HandleRequestThrow(const userver::server::http::HttpRequest& request,
                                             userver::server::request::RequestContext&) const {
+    SetCors(request);
     const auto& player_id = request.GetArg("player_id");
     const auto& x_str = request.GetArg("x");
     const auto& y_str = request.GetArg("y");
@@ -70,8 +72,19 @@ std::string GameHandler::HandleRequestThrow(const userver::server::http::HttpReq
         return "Wrong params";
     }
 
+    const auto my_field_str = redis_client_->Hget("game", player_id, redis_cc_).Get().value_or("");
+    if (my_field_str.empty()) {
+        return "your field is broken";
+    }
+
+    formats::json::Value my_field_json = formats::json::FromString(my_field_str);
+    auto my_field = my_field_json["left_field"]["field"].As<Field>();
+    if (FieldHelper::IsAllShipsDead(my_field)) {
+        return "You lose";
+    }
+
     const auto& is_player_turn = redis_client_->Hget("turn", player_id, redis_cc_).Get().value_or("0");
-    if (is_player_turn == "0") {
+    if (is_player_turn != "1") {
         return "Not your turn";
     }
 
@@ -100,6 +113,9 @@ std::string GameHandler::HandleRequestThrow(const userver::server::http::HttpReq
 
     formats::json::Value field_json = formats::json::FromString(field_str);
     auto field = field_json["left_field"]["field"].As<Field>();
+    if (FieldHelper::IsAllShipsDead(field)) {
+        return "You win";
+    }
     if (field[x][y] == FieldPoint::Ship) {
         field[x][y] = FieldPoint::X_Ship;
         formats::json::ValueBuilder builder;

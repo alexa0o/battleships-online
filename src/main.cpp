@@ -9,23 +9,25 @@
 
 
 #include "hello.hpp"
+#include "options.hpp"
 #include "registration/registration.hpp"
 #include "field/field.hpp"
 #include "game/game.hpp"
 
 int main(int argc, char *argv[]) {
-  auto component_list = userver::components::MinimalServerComponentList()
-                            .Append<userver::server::handlers::Ping>()
-                            .Append<userver::components::HttpClient>()
-                            .Append<userver::components::Secdist>()
-                            .Append<userver::components::Redis>("key-value-database")
-                            .Append<userver::server::handlers::TestsControl>()
-                            .Append<userver::components::TestsuiteSupport>();
-
-  service_template::AppendHello(component_list);
-  battleship::AppendRegistrator(component_list);
-  battleship::AppendField(component_list);
-  battleship::AppendGame(component_list);
-
-  return userver::utils::DaemonMain(argc, argv, component_list);
+    auto component_list = userver::components::MinimalServerComponentList()
+                              .Append<userver::server::handlers::Ping>()
+                              .Append<userver::components::HttpClient>()
+                              .Append<userver::components::Secdist>()
+                              .Append<userver::components::Redis>("key-value-database")
+                              .Append<userver::server::handlers::TestsControl>()
+                              .Append<userver::components::TestsuiteSupport>();
+  
+    service_template::AppendHello(component_list);
+    battleship::AppendRegistrator(component_list);
+    battleship::AppendField(component_list);
+    battleship::AppendGame(component_list);
+    AppendOptions(component_list);
+  
+    return userver::utils::DaemonMain(argc, argv, component_list);
 }
