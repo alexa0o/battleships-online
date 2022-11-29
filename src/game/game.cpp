@@ -98,6 +98,9 @@ std::string GameHandler::HandleRequestThrow(const userver::server::http::HttpReq
 
     const auto x = str_to_size_t(x_str);
     const auto y = str_to_size_t(y_str);
+    if (x >= kFieldSize || y >= kFieldSize) {
+        return "wrong coords";
+    }
 
     const auto enemy_id = redis_client_->Hget("game_matcher", player_id, redis_cc_).Get().value_or("");
     if (enemy_id.empty()) {

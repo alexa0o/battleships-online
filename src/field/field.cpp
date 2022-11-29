@@ -89,8 +89,8 @@ std::string FieldHandler::HandleRequestThrow(const server::http::HttpRequest& re
 Field Parse(const formats::json::Value& json,
             formats::parse::To<Field>) {
     Field field;
-    for (size_t x = 0; x < json.GetSize(); ++x) {
-        for (size_t y = 0; y < json[x].GetSize(); ++y) {
+    for (size_t x = 0; x < std::min(json.GetSize(), kFieldSize); ++x) {
+        for (size_t y = 0; y < std::min(json[x].GetSize(), kFieldSize); ++y) {
             field[x][y] = static_cast<FieldPoint>(json[x][y].As<size_t>());
         }
     }
