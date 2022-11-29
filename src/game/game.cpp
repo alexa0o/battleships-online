@@ -71,6 +71,7 @@ std::string GameHandler::HandleRequestThrow(const userver::server::http::HttpReq
     if (player_id.empty() || x_str.empty() || y_str.empty()) {
         return "Wrong params";
     }
+    redis_client_->Hset("time", player_id, std::to_string(std::time(nullptr)), redis_cc_);
 
     const auto my_field_str = redis_client_->Hget("game", player_id, redis_cc_).Get().value_or("");
     if (my_field_str.empty()) {
@@ -102,6 +103,7 @@ std::string GameHandler::HandleRequestThrow(const userver::server::http::HttpReq
     if (enemy_id.empty()) {
         return "player_id is broken";
     }
+    redis_client_->Hset("time", enemy_id, std::to_string(std::time(nullptr)), redis_cc_);
 
     redis_client_->Hset("turn", player_id, "0", redis_cc_);
     redis_client_->Hset("turn", enemy_id, "1", redis_cc_);

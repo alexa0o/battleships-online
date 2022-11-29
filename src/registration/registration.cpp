@@ -27,8 +27,10 @@ public:
     ~GameMatcher();
 private:
     static void MatchLoop(storages::redis::ClientPtr redis_client, std::atomic_bool* is_stop);
+    static void CleanLoop(storages::redis::ClientPtr redis_client, std::atomic_bool* is_stop);
 private:
     engine::TaskWithResult<void> match_loop_;
+    engine::TaskWithResult<void> clean_loop_;
     std::atomic_bool is_stop_{false};
 };
 
@@ -37,6 +39,11 @@ GameMatcher::GameMatcher(storages::redis::ClientPtr redis_client,
     match_loop_ = utils::CriticalAsync(task_processor,
                                        "matcher_loop",
                                        this->MatchLoop,
+                                       redis_client,
+                                       &is_stop_);
+    clean_loop_ = utils::CriticalAsync(task_processor,
+                                       "matcher_loop",
+                                       this->CleanLoop,
                                        redis_client,
                                        &is_stop_);
 }
@@ -63,6 +70,29 @@ void GameMatcher::MatchLoop(storages::redis::ClientPtr redis_client,
             redis_client->Hset("game_matcher", reg_id_2.value(), reg_id.value(), redis_cc);
         }
         engine::SleepFor(std::chrono::seconds(3));
+    }
+}
+
+static constexpr size_t kHourSeconds = 3600;
+
+void GameMatcher::CleanLoop(storages::redis::ClientPtr redis_client,
+                            std::atomic_bool* is_stop) {
+    storages::redis::CommandControl redis_cc;
+    while (!is_stop->load()) {
+        engine::SleepFor(std::chrono::hours(1));
+        const auto& ids = redis_client->Hkeys("time", redis_cc).Get();
+        const auto now = std::time(nullptr);
+        std::vector<std::string> ids_to_remove;
+        for (const auto id : ids) {
+            const auto& last_acess_time = redis_client->Hget("time", id, redis_cc).Get().value_or("0");
+            if ((now - std::stol(last_acess_time)) > kHourSeconds) {
+                ids_to_remove.push_back(id);
+            }
+            redis_client->Hdel("time", ids_to_remove, redis_cc);
+            redis_client->Hdel("turn", ids_to_remove, redis_cc);
+            redis_client->Hdel("game", ids_to_remove, redis_cc);
+            redis_client->Hdel("game_matcher", ids_to_remove, redis_cc);
+        }
     }
 }
 
@@ -98,6 +128,7 @@ std::string Registrator::HandleRequestThrow(const server::http::HttpRequest& req
     SetCors(request);
     const auto reg_id = std::to_string(kLastRegId++);
     redis_client_->Rpush(kRegQueue, reg_id, redis_cc_);
+    redis_client_->Hset("time", reg_id, std::to_string(std::time(nullptr)), redis_cc_);
 
     return reg_id;
 }
@@ -135,6 +166,7 @@ std::string RegStatus::HandleRequestThrow(const server::http::HttpRequest& reque
         return "Can't find reg_id arg";
     }
     const auto& player_id = redis_client_->Hget("game_matcher", reg_id, redis_cc_).Get();
+    redis_client_->Hset("time", reg_id, std::to_string(std::time(nullptr)), redis_cc_);
 
     return player_id.value_or("Wait");
 }
