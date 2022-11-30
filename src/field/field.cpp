@@ -113,6 +113,13 @@ bool FieldHelper::CountShipsAndCheckValid() {
         bool is_ship = false;
         for (size_t y = 0; y < kFieldSize; ++y) {
             if (field_[x][y] == FieldPoint::Empty) {
+                if (is_ship) {
+                    if (x > 0) {
+                        if (test_field[x - 1][y].IsShip) {
+                            return false;
+                        }
+                    }
+                }
                 is_ship = false;
             } else if (field_[x][y] == FieldPoint::Ship) {
                 test_field[x][y].IsShip = true;
@@ -125,6 +132,12 @@ bool FieldHelper::CountShipsAndCheckValid() {
                     
                     if (x > 0) {
                         if (test_field[x - 1][y].IsShip) {
+                            return false;
+                        }
+                    }
+                } else if (x > 0) {
+                    if (y > 0) {
+                        if (test_field[x - 1][y - 1].IsShip) {
                             return false;
                         }
                     }
