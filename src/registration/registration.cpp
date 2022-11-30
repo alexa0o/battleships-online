@@ -79,7 +79,7 @@ void GameMatcher::CleanLoop(storages::redis::ClientPtr redis_client,
                             std::atomic_bool* is_stop) {
     storages::redis::CommandControl redis_cc;
     while (!is_stop->load()) {
-        engine::SleepFor(std::chrono::hours(1));
+        engine::SleepFor(std::chrono::seconds(10));
         const auto& ids = redis_client->Hkeys("time", redis_cc).Get();
         const auto now = std::time(nullptr);
         std::vector<std::string> ids_to_remove;

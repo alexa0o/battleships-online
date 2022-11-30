@@ -84,11 +84,6 @@ std::string GameHandler::HandleRequestThrow(const userver::server::http::HttpReq
         return "You lose";
     }
 
-    const auto& is_player_turn = redis_client_->Hget("turn", player_id, redis_cc_).Get().value_or("0");
-    if (is_player_turn != "1") {
-        return "Not your turn";
-    }
-
     const auto str_to_size_t = [](const std::string& str) {
         std::stringstream iss(str);
         size_t result = 0;
@@ -108,9 +103,6 @@ std::string GameHandler::HandleRequestThrow(const userver::server::http::HttpReq
     }
     redis_client_->Hset("time", enemy_id, std::to_string(std::time(nullptr)), redis_cc_);
 
-    redis_client_->Hset("turn", player_id, "0", redis_cc_);
-    redis_client_->Hset("turn", enemy_id, "1", redis_cc_);
-    
     const auto field_str = redis_client_->Hget("game", enemy_id, redis_cc_).Get().value_or("");
     if (field_str.empty()) {
         return "enemy field is broken";
@@ -121,6 +113,12 @@ std::string GameHandler::HandleRequestThrow(const userver::server::http::HttpReq
     if (FieldHelper::IsAllShipsDead(field)) {
         return "You win";
     }
+    const auto& is_player_turn = redis_client_->Hget("turn", player_id, redis_cc_).Get().value_or("0");
+    if (is_player_turn != "1") {
+        return "Not your turn";
+    }
+    redis_client_->Hset("turn", player_id, "0", redis_cc_);
+    redis_client_->Hset("turn", enemy_id, "1", redis_cc_);
     if (field[x][y] == FieldPoint::Ship) {
         field[x][y] = FieldPoint::X_Ship;
         formats::json::ValueBuilder builder;

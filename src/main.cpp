@@ -8,7 +8,6 @@
 #include <userver/storages/secdist/component.hpp>
 
 
-#include "hello.hpp"
 #include "options.hpp"
 #include "registration/registration.hpp"
 #include "field/field.hpp"
@@ -23,7 +22,6 @@ int main(int argc, char *argv[]) {
                               .Append<userver::server::handlers::TestsControl>()
                               .Append<userver::components::TestsuiteSupport>();
   
-    service_template::AppendHello(component_list);
     battleship::AppendRegistrator(component_list);
     battleship::AppendField(component_list);
     battleship::AppendGame(component_list);
