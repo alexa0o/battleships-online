@@ -1,17 +1,17 @@
-# service_template
+# Battleship, The game
 
-Template of a C++ service that uses [userver framework](https://github.com/userver-framework/userver).
+Сервер для игры в морской бой. 
 
-
-## Download and Build
-
-To create your own userver-based service follow the following steps:
-
-1. Press the green "Use this template button" at the top of this github page
-2. Clone the service `git clone your-service-repo && cd your-service-repo && git submodule update --init`
-3. Give a proper name to your service and replace all the occurences of "service_template" string with that name
-4. Feel free to tweak, adjust or fully rewrite the source code of your service.
-
+API:
+1. /regnewgame 
+Посылаем запрос на подбор противника, в ответ получаем номер для очереди (reg_id)
+2. /regstatus?reg_id=123
+Если подобрали соперника, то венет наш новый id для игры, иначе "wait"
+3. /sendfield?player_id=123
+Посылаем поле для игры в формате json, если оно валидно, то вернет json с "status": "true" и количество кораблей разной палубности, иначе "status": "false"
+4. /trykill?player_id=123&x=0&y=0
+Стреляем в точку (x, y). Получим в ответе Miss/Damage/Kill, все как в обычном морском бою. Если по дороге получили какую-то ошибку, то вернем ее. Стрелять можно только в свой ход. Попытка пострелять в чужой ход приведет к ответу "It's not your turn"
+Когда все корабли противника будут уничтожены получим "You win". Или "You lose", в зависимости от ситуации.
 
 ## Makefile
 
@@ -36,10 +36,3 @@ Makefile contains typicaly useful targets for development:
 * `make docker-start-service-debug` - does a `make install-debug` and runs service in docker environment
 
 Edit `Makefile.local` to change the default configuration and build options.
-
-
-## License
-
-The original template is distributed under the [Apache-2.0 License](https://github.com/userver-framework/userver/blob/develop/LICENSE)
-and [CLA](https://github.com/userver-framework/userver/blob/develop/CONTRIBUTING.md). Services based on the template may change
-the license and CLA.
